@@ -1,0 +1,12 @@
+schema_version: 1
+name: mhd_orszag_tang
+
+# The same run-relative layout is applied independently to every immediate
+# child directory in a multi-run campaign. Additional analysis, statistics,
+# image, and text datasets are allowed and remain discoverable.
+files:
+  output:
+    role: time_series
+    mode: append
+    path: output.bp
+

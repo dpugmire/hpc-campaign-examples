@@ -1,0 +1,13 @@
+build/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.aca
+*.bp/
+*.bp
+*.png
+*.mp4
+runs/
+runs_*/
+

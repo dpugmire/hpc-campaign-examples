@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hpc-campaign-examples"
+version = "0.1.0"
+description = "End-to-end examples for HPC Campaign"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "hpc-campaign @ git+https://github.com/ornladios/hpc-campaign.git@master",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.9",
+]
+
+[tool.setuptools]
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E203"]
