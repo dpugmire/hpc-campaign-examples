@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create or update a campaign with only ADIOS/BP datasets.
+Create or update a campaign with ADIOS/BP datasets and scientific provenance.
 
 This is the first step in the intended notebook/script workflow:
 
@@ -8,7 +8,9 @@ This is the first step in the intended notebook/script workflow:
   2. Run analysis/rendering separately and add visualization image bytes with
      the hpc-campaign visualization API.
 
-No rendered images or visualization metadata are added by this script.
+No rendered images or visualization metadata are added by this script. It does
+record simulation runs, logical variables, and Activities for requested
+derived fields and statistics in the campaign's active W3C PROV document.
 """
 
 from __future__ import annotations
@@ -19,6 +21,11 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
+
+try:
+    from .mhd_provenance import record_campaign_provenance
+except ImportError:  # Direct execution places scripts/ rather than the repo root on sys.path.
+    from mhd_provenance import record_campaign_provenance
 
 
 def _import_hpc_campaign():
@@ -224,6 +231,12 @@ def parse_args() -> argparse.Namespace:
         help="Campaign layout schema to embed and validate. Default: schemas/mhd_orszag_tang.yaml",
     )
     parser.add_argument(
+        "--exportProv",
+        type=Path,
+        default=None,
+        help="Optional path for exporting the authored W3C PROV document as PROV-JSON.",
+    )
+    parser.add_argument(
         "--withStats",
         action="store_true",
         help="Generate or reuse sibling *_stats BP files and add them to the campaign.",
@@ -355,11 +368,24 @@ def main() -> int:
         manager_class, format_info_fn = _import_hpc_campaign()
         manager = manager_class(archive=args.archive, campaign_store=args.campaign_store)
         manager.open(create=True, truncate=args.recreate)
+        if manager.prov_documents(active=True):
+            manager.close()
+            raise SystemExit(
+                "The campaign already contains active provenance. Use --recreate for a complete re-ingest."
+            )
 
     try:
         count = add_datasets(manager, datasets, out_root, args.dryRun)
         if manager is not None:
             apply_and_validate_schema(manager, args.schema)
+            provenance = record_campaign_provenance(manager, datasets, out_root)
+            print(
+                f"[ok] provenance recorded for {len(provenance.runs)} run(s) and "
+                f"{len(provenance.by_physical)} logical variable(s)"
+            )
+            if args.exportProv is not None:
+                manager.export_prov("campaign-provenance", args.exportProv.expanduser().resolve())
+                print(f"[ok] exported PROV-JSON: {args.exportProv.expanduser().resolve()}")
     finally:
         if manager is not None:
             manager.close()

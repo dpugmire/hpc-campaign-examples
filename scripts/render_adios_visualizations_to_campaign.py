@@ -6,6 +6,8 @@ The script opens ADIOS/BP datasets already registered in a campaign, reads one
 or more variables, renders simple PNG images in memory, and stores those image
 bytes with Manager.visualization(). It can also write PNG files to disk for
 inspection, and optionally register those files as external image replicas.
+Each registered sequence is also recorded as the output of a W3C PROV
+Visualization Activity with exact logical-variable inputs.
 """
 
 from __future__ import annotations
@@ -20,6 +22,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+try:
+    from .mhd_provenance import VisualizationProvenanceRecorder
+except ImportError:  # Direct execution places scripts/ rather than the repo root on sys.path.
+    from mhd_provenance import VisualizationProvenanceRecorder
 
 RANGE_ANALYSIS_PERCENTILE_LOW = 2.0
 RANGE_ANALYSIS_PERCENTILE_HIGH = 98.0
@@ -221,6 +228,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dryRun", action="store_true", help="Print selected work without reading or writing images.")
     parser.add_argument("--listDatasets", action="store_true", help="Print matching campaign datasets and exit.")
     parser.add_argument("--showInfo", action="store_true", help="Print hpc-campaign info after writing.")
+    parser.add_argument(
+        "--exportProv",
+        type=Path,
+        default=None,
+        help="Optional path for exporting the updated W3C PROV document as PROV-JSON.",
+    )
     return parser.parse_args()
 
 
@@ -1191,6 +1204,7 @@ def main() -> int:
 
     added = 0
     skipped = 0
+    provenance_recorder = None
     try:
         info_data = manager.info(list_replicas=True, list_files=False)
         if args.listDatasets:
@@ -1205,6 +1219,13 @@ def main() -> int:
             raise SystemExit("--name cannot be used with --allVariables.")
         if not variables and not args.allVariables:
             raise SystemExit("Select at least one variable with --variable or use --allVariables.")
+        if not args.dryRun:
+            active_documents = manager.prov_documents(active=True)
+            if len(active_documents) != 1:
+                raise SystemExit(
+                    "Visualization provenance requires exactly one active campaign PROV document; "
+                    "create the campaign with add_adios_files_to_campaign.py first."
+                )
 
         datasets = select_datasets(info_data, exact_names, patterns, args.allDatasets)
         print(f"[info] datasets : {len(datasets)}")
@@ -1269,6 +1290,11 @@ def main() -> int:
                     external_images=bool(args.externalImages),
                 )
 
+                semantic_kwargs = visualization_semantic_kwargs(
+                    physical_variable,
+                    resolved_vis_type,
+                    set(discover_variables(bp_path)),
+                )
                 visid = add_visualization(
                     manager=manager,
                     dataset_name=dataset.name,
@@ -1280,18 +1306,38 @@ def main() -> int:
                     replace=args.replace,
                     thumbnail_step=args.thumbnailStep,
                     image_workdir=image_workdir,
-                    semantic_kwargs=visualization_semantic_kwargs(
-                        physical_variable,
-                        resolved_vis_type,
-                        set(discover_variables(bp_path)),
-                    ),
+                    semantic_kwargs=semantic_kwargs,
                 )
                 sequence_name = visualization_sequence_name(dataset.name, name)
                 if visid is None:
                     print(f"[ok] added image sequence name={sequence_name} images={len(images)}")
                 else:
                     print(f"[ok] added visualization visid={visid} name={sequence_name} images={len(images)}")
+                if provenance_recorder is None:
+                    provenance_recorder = VisualizationProvenanceRecorder(manager, Path(__file__))
+                provenance_output = provenance_recorder.record(
+                    source_dataset=dataset.name,
+                    sequence_name=sequence_name,
+                    vis_type=resolved_vis_type,
+                    semantic_kwargs=semantic_kwargs,
+                    steps=steps,
+                    rendering_parameters={
+                        "sequential_colormap": args.cmap,
+                        "diverging_colormap": args.divergingCmap,
+                        "contour_levels": args.contourLevels,
+                        "contour_line_width": args.contourLineWidth,
+                        "dpi": args.dpi,
+                        "figure_size_inches": [args.figureWidth, args.figureHeight],
+                        "thumbnail_index": args.thumbnailStep,
+                        "external_images": bool(args.externalImages),
+                    },
+                )
+                print(f"[ok] provenance output={provenance_output}")
                 added += 1
+
+        if args.exportProv is not None:
+            manager.export_prov("campaign-provenance", args.exportProv.expanduser().resolve())
+            print(f"[ok] exported PROV-JSON: {args.exportProv.expanduser().resolve()}")
 
         if args.showInfo:
             print(format_info_fn(manager.info(list_replicas=False, list_files=False)))

@@ -7,8 +7,10 @@ ensemble execution, derived analysis, statistics, campaign ingestion, schema
 validation, and visualization.
 
 The `main` branch uses only APIs available on the current `hpc-campaign`
-`master` branch. Experimental W3C PROV integration is developed separately so
-the baseline example remains usable without an unmerged API.
+`master` branch. This `provenance-pr-102` branch demonstrates the W3C PROV API
+proposed by
+[hpc-campaign PR #102](https://github.com/dpugmire/hpc-campaign/pull/102).
+See [PROVENANCE.md](PROVENANCE.md) for the complete data-to-PROV mapping.
 
 ## Requirements
 
@@ -18,8 +20,9 @@ the baseline example remains usable without an unmerged API.
 - ADIOS2 with C++ bindings
 - MPI, unless the solver is configured with `OT_ENABLE_MPI=OFF`
 
-The Python project installs `hpc-campaign` from its current `master` branch,
-along with the Matplotlib dependency used by the rendering script:
+On this branch, the Python project installs the matching experimental
+`hpc-campaign` branch along with the Matplotlib dependency used by the
+rendering script:
 
 ```bash
 python3 -m venv .venv
@@ -104,7 +107,15 @@ name because the solver can prefix physical ADIOS names. ADIOS remains the
 authoritative description of variables inside the file.
 
 Schema validation is metadata-only. Additional analysis, statistics, images,
-and text datasets are allowed in each run.
+and text datasets are allowed in each run. After validating the layout, the
+script authors the campaign's W3C PROV document: simulation runs, logical
+variables, software agents, Plans, and exact generation/derivation relations.
+
+To write a reviewable PROV-JSON copy beside the campaign, add:
+
+```bash
+--exportProv ./mhd.prov.json
+```
 
 ## Add derived fields and statistics
 
@@ -162,6 +173,9 @@ python scripts/render_adios_visualizations_to_campaign.py \
 
 The rendering script uses `Manager.visualization()` to register explicit image
 items, source variables, semantic roles, a thumbnail, and rendering metadata.
+It also records one Visualization Activity per sequence. The output logical
+variable points to an embedded sequence manifest, and qualified PROV
+derivations identify every field used for geometry, color, or contours.
 
 ## Run the tests
 
@@ -171,5 +185,6 @@ python -m ruff check .
 ```
 
 The tests validate the schema against a two-run campaign and exercise the
-scientific-name resolution, multiple-input derived calculation, and statistics
-helpers. Generated campaigns and simulation products are ignored by Git.
+scientific-name resolution, multiple-input derived calculation, statistics,
+simulation generation, exact derivation parents, and visualization provenance.
+Generated campaigns and simulation products are ignored by Git.
