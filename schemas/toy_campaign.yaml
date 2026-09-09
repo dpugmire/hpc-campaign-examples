@@ -1,0 +1,14 @@
+schema_version: 1
+name: toy_campaign
+
+# This schema describes the two generated ADIOS/BP payloads. Each file is a
+# static product with one random 2D variable named "var". The visualization
+# image is a derived campaign product and is intentionally not part of the
+# source layout.
+files:
+  file1:
+    role: static
+    path: file1.bp
+  file2:
+    role: static
+    path: file2.bp

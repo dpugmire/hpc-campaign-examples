@@ -47,6 +47,25 @@ source .venv/bin/activate
 python app.py /Users/dpn/ORNL_Dropbox/campaign-store/mhd_orszag_tang_runs_full.aca
 ```
 
+## Toy campaign
+
+For the smallest complete example, build `toy_campaign`:
+
+```bash
+python scripts/toy_campaign.py --output-root ./toy_campaign_output
+```
+
+This creates two ADIOS/BP source files, `file1.bp` and `file2.bp`, with one
+random 2D variable named `var` in each file. It also renders `file1.bp:var`
+to `file1_var_heatmap.png` and `file2.bp:var` to `file2_var_heatmap.png`, then
+registers both images as heatmap visualizations. W3C PROV records that `sim1`
+creates `file1.bp:var`, `sim2` creates `file2.bp:var`, and each visualization
+Activity derives its image from the matching `var`. The script writes
+`toy_campaign.aca` and `toy_campaign.prov.json` under the output root.
+
+The example refuses to overwrite existing generated outputs. Use a fresh
+`--output-root` or `--archive` name when rerunning it.
+
 ## Requirements
 
 - Python 3.10 or newer
