@@ -18,8 +18,7 @@
     {
       "name": "hll_first_order",
       "solver": "hll",
-      "ranks": 4,
-      "prepend_var_names" : "hll_"
+      "ranks": 4
     },
     {
       "name": "rusanov_first_order",

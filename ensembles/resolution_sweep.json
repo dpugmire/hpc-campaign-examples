@@ -15,6 +15,24 @@
   },
   "runs": [
     {
+      "name": "hll_64",
+      "solver": "hll",
+      "nx": 64,
+      "ny": 64
+    },
+    {
+      "name": "rusanov_64",
+      "solver": "rusanov",
+      "nx": 64,
+      "ny": 64
+    },
+    {
+      "name": "muscl_hll_64",
+      "solver": "muscl_hll",
+      "nx": 64,
+      "ny": 64
+    },
+    {
       "name": "hll_128",
       "solver": "hll",
       "nx": 128,
@@ -31,24 +49,6 @@
       "solver": "muscl_hll",
       "nx": 128,
       "ny": 128
-    },
-    {
-      "name": "hll_256",
-      "solver": "hll",
-      "nx": 256,
-      "ny": 256
-    },
-    {
-      "name": "rusanov_256",
-      "solver": "rusanov",
-      "nx": 256,
-      "ny": 256
-    },
-    {
-      "name": "muscl_hll_256",
-      "solver": "muscl_hll",
-      "nx": 256,
-      "ny": 256
     }
   ]
 }

@@ -18,6 +18,7 @@ from scripts.mhd_provenance import (
     active_document,
     record_campaign_provenance,
 )
+from scripts.add_scalar_fields_to_campaign import add_scalar_field_sequence
 from scripts.render_adios_visualizations_to_campaign import (
     add_visualization,
     visualization_sequence_name,
@@ -213,5 +214,77 @@ def test_visualization_records_all_inputs_and_sequence_manifest(tmp_path: Path) 
             record for record in _logical_entities(document) if record.identifier == pressure_output
         )
         assert pressure_entity.get_attribute(HPC["variableDefinition"]) == {"pressure_visualization"}
+    finally:
+        manager.close()
+
+
+def test_scalar_field_sequence_records_items_and_provenance(tmp_path: Path) -> None:
+    """A scalar-field sequence must register raw fields and source lineage."""
+    run_dir = tmp_path / "run-001"
+    run_dir.mkdir()
+    source = run_dir / "output.bp"
+    _write_prefixed_source(source)
+
+    manager = Manager(archive="mhd.aca", campaign_store=str(tmp_path))
+    manager.open(create=True, truncate=True)
+    try:
+        _register_datasets(manager, tmp_path, [source])
+        index = record_campaign_provenance(manager, [source], tmp_path)
+        field = np.arange(12, dtype=np.float64).reshape(3, 4)
+
+        add_scalar_field_sequence(
+            manager,
+            dataset_name="run-001/output.bp",
+            variable="sim_pressure",
+            vis_type="heatmap",
+            name="pressure_scalar_field",
+            steps=[0],
+            arrays=[field],
+            replace=False,
+            dtype="float32",
+        )
+        sequence_name = visualization_sequence_name(
+            "run-001/output.bp",
+            "pressure_scalar_field",
+        )
+        recorder = VisualizationProvenanceRecorder(
+            manager,
+            Path(__file__).parents[1] / "scripts" / "add_scalar_fields_to_campaign.py",
+        )
+        output = recorder.record(
+            source_dataset="run-001/output.bp",
+            sequence_name=sequence_name,
+            vis_type="heatmap",
+            semantic_kwargs={"color_by": "sim_pressure"},
+            steps=[0],
+            rendering_parameters={"scalar_fields": True, "dtype": "float32"},
+        )
+
+        info_data = manager.info(list_replicas=True, list_files=True)
+        sequence_info = next(
+            sequence
+            for sequence in info_data.visualization_sequences.values()
+            if sequence.name == sequence_name
+        )
+        assert sequence_info.items[0].item_type == "SCALAR_FIELD"
+        scalar_dataset = next(
+            dataset
+            for dataset in info_data.datasets.values()
+            if dataset.name == sequence_info.items[0].dataset_name
+        )
+        assert scalar_dataset.file_format == "SCALAR_FIELD"
+        assert scalar_dataset.metadata["shape"] == [3, 4]
+        assert scalar_dataset.metadata["dtype"] == "float32"
+
+        document = active_document(manager)
+        pressure_entity = next(record for record in _logical_entities(document) if record.identifier == output)
+        assert pressure_entity.get_attribute(HPC["variableDefinition"]) == {"pressure_visualization"}
+        expected_pressure = index.by_definition[("run-001", "pressure")].reference
+        actual_inputs = {
+            record.args[1]
+            for record in document.get_records(ProvDerivation)
+            if record.args[0] == output
+        }
+        assert actual_inputs == {expected_pressure}
     finally:
         manager.close()
