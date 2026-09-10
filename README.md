@@ -47,6 +47,27 @@ source .venv/bin/activate
 python app.py /Users/dpn/ORNL_Dropbox/campaign-store/mhd_orszag_tang_runs_full.aca
 ```
 
+## Seurat plugins
+
+This repository ships Seurat plugins for diagnostics that are specific to the
+Orszag-Tang MHD example. Point Seurat at the plugin directory before launching
+the viewer:
+
+```bash
+cd /path/to/hpc-campaign-examples
+export SEURAT_PLUGIN_PATH="$PWD/plugins/seurat"
+```
+
+The available plugins are:
+
+- `mhd_energy_conservation`: plots relative total-energy drift, with an optional
+  residual between `total_energy` and the component-energy sum.
+- `mhd_energy_partition`: plots internal, kinetic, and magnetic energy fractions.
+
+These plugins are offered for scalar energy variables with more than one ADIOS
+step: `total_energy`, `internal_energy`, `kinetic_energy`, and
+`magnetic_energy`.
+
 ## Toy campaign
 
 For the smallest complete example, build `toy_campaign`:
